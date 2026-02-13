@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Shooter - Battle Royale</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            text-align: center;
+            position: relative;
+        }
+
+        canvas {
+            border: 4px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: #0f3460;
+        }
+
+        #ui {
+            color: white;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 800px;
+        }
+
+        .player-info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .player-info h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .health-bar {
+            width: 150px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            margin: 10px auto;
+            overflow: hidden;
+            border: 2px solid #fff;
+        }
+
+        .health-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .player1-health {
+            background: linear-gradient(90deg, #ff4444, #cc0000);
+        }
+
+        .player2-health {
+            background: linear-gradient(90deg, #4444ff, #0000cc);
+        }
+
+        .wins {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FFD700;
+        }
+
+        .bullets {
+            font-size: 18px;
+            margin-top: 5px;
+            color: #FFA500;
+        }
+
+        .controls {
+            font-size: 11px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        .round-info {
+            flex: 0 0 150px;
+            text-align: center;
+        }
+
+        .round-info h2 {
+            font-size: 28px;
+            color: #FFD700;
+        }
+
+        #cardSelection {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            z-index: 10;
+            min-width: 600px;
+        }
+
+        #cardSelection h2 {
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .card-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .card {
+            width: 150px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 3px solid #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.5);
+        }
+
+        .card h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+
+        .card p {
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #gameOver h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        #gameOver button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #gameOver button:hover {
+            background: #764ba2;
+        }
+
+        .parry-indicator {
+            position: absolute;
+            color: #FFD700;
+            font-weight: bold;
+            font-size: 14px;
+            pointer-events: none;
+            text-shadow: 0 0 10px #FFD700;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div class="player-info">
+                <h3>🔴 Player 1</h3>
+                <div class="health-bar">
+                    <div class="health-fill player1-health" id="player1Health" style="width: 100%"></div>
+                </div>
+                <div class="wins">Wins: <span id="player1Wins">0</span></div>
+                <div class="bullets">Ammo: <span id="player1Bullets">3</span>/3</div>
+                <div class="controls">WASD: Move | SPACE: Shoot | Q: Parry</div>
+            </div>
+            <div class="round-info">
+                <h2>Round <span id="currentRound">1</span>/5</h2>
+            </div>
+            <div class="player-info">
+                <h3>🔵 Player 2</h3>
+                <div class="health-bar">
+                    <div class="health-fill player2-health" id="player2Health" style="width: 100%"></div>
+                </div>
+                <div class="wins">Wins: <span id="player2Wins">0</span></div>
+                <div class="bullets">Ammo: <span id="player2Bullets">3</span>/3</div>
+                <div class="controls">Arrows: Move | Enter: Shoot | Shift: Parry</div>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="cardSelection">
+            <h2 id="cardWinner"></h2>
+            <p>Choose one card to upgrade your abilities:</p>
+            <div class="card-container" id="cardContainer"></div>
+        </div>
+
+        <div id="gameOver">
+            <h2 id="winnerText"></h2>
+            <p id="finalScores"></p>
+            <button onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameRunning = true;
+        let keys = {};
+        let currentRound = 1;
+        let maxRounds = 5;
+        let waitingForCardSelection = false;
+        let cardWinner = null;
+
+        // Card definitions
+        const cardTypes = [
+            { name: "+20 Max Health", effect: "maxHealth", value: 20, description: "Increase max health by 20" },
+            { name: "+30 Health", effect: "health", value: 30, description: "Instantly heal 30 HP" },
+            { name: "+1 Damage", effect: "damage", value: 1, description: "Bullets deal +1 damage" },
+            { name: "Fast Bullets", effect: "bulletSpeed", value: 3, description: "Bullets move faster" },
+            { name: "Quick Reload", effect: "reloadSpeed", value: -1000, description: "Reload 1s faster" },
+            { name: "+1 Max Ammo", effect: "maxBullets", value: 1, description: "Carry one more bullet" },
+            { name: "Life Steal", effect: "lifeSteal", value: 5, description: "Heal 5 HP per hit" },
+            { name: "Long Parry", effect: "parryDuration", value: 200, description: "Parry window lasts longer" },
+            { name: "Quick Parry", effect: "parryCooldown", value: -1000, description: "Parry cooldown reduced by 1s" },
+            { name: "Speed Boost", effect: "speed", value: 1, description: "Move faster" },
+            { name: "High Jump", effect: "jumpPower", value: 2, description: "Jump higher" },
+            { name: "Triple Jump", effect: "maxJumps", value: 1, description: "Gain an extra jump" },
+            { name: "Low Gravity", effect: "gravity", value: -0.1, description: "Fall slower, float longer" },
+            { name: "Bullet Size", effect: "bulletSize", value: 2, description: "Bigger bullets, easier hits" },
+            { name: "Piercing Shot", effect: "piercing", value: 1, description: "Bullets go through platforms" },
+        ];
+
+        // Bullet class
+        class Bullet {
+            constructor(x, y, velocityX, velocityY, owner, damage, radius = 5, piercing = false) {
+                this.x = x;
+                this.y = y;
+                this.velocityX = velocityX;
+                this.velocityY = velocityY;
+                this.radius = radius;
+                this.owner = owner;
+                this.active = true;
+                this.damage = damage;
+                this.piercing = piercing;
+            }
+
+            update() {
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+
+                // Check if bullet goes off screen (kills it)
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                    this.active = false;
+                }
+
+                // Check platform collisions (only if not piercing)
+                if (!this.piercing) {
+                    platforms.forEach(platform => {
+                        if (this.checkCollision(platform)) {
+                            this.active = false;
+                        }
+                    });
+                }
+            }
+
+            checkCollision(rect) {
+                return this.x > rect.x &&
+                       this.x < rect.x + rect.width &&
+                       this.y > rect.y &&
+                       this.y < rect.y + rect.height;
+            }
+
+            draw() {
+                ctx.fillStyle = this.owner === player1 ? '#FF4444' : '#4444FF';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#FFF';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // Player class
+        class Player {
+            constructor(x, y, color, controls, healthBarId) {
+                this.x = x;
+                this.y = y;
+                this.width = 30;
+                this.height = 30;
+                this.color = color;
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.speed = 5;
+                this.jumpPower = 12;
+                this.gravity = 0.5;
+                this.onGround = false;
+                this.jumpsLeft = 2;
+                this.maxJumps = 2;
+                this.controls = controls;
+                this.maxHealth = 100;
+                this.health = 100;
+                this.healthBarId = healthBarId;
+                this.bulletDisplayId = healthBarId.replace('Health', 'Bullets');
+                this.wins = 0;
+                this.facingRight = true;
+                this.canShoot = true;
+                this.shootCooldown = 3000;
+                this.lastShotTime = -this.shootCooldown;
+                this.damage = 10;
+                this.bulletSpeed = 10;
+                this.maxBullets = 3;
+                this.currentBullets = 3;
+                this.bulletCount = 1;
+                this.isParrying = false;
+                this.parryDuration = 300;
+                this.parryCooldown = 4000;
+                this.lastParryTime = -this.parryCooldown;
+                this.parryActive = false;
+                this.shootKeyPressed = false;
+                this.lifeSteal = 0;
+                this.bulletSize = 5;
+                this.piercing = false;
+            }
+
+            reset(x, y) {
+                this.x = x;
+                this.y = y;
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.health = this.maxHealth;
+                this.currentBullets = this.maxBullets;
+                this.updateHealthBar();
+                this.updateBulletDisplay();
+            }
+
+            update() {
+                if (waitingForCardSelection) return;
+
+                // Horizontal movement
+                if (keys[this.controls.left]) {
+                    this.velocityX = -this.speed;
+                    this.facingRight = false;
+                } else if (keys[this.controls.right]) {
+                    this.velocityX = this.speed;
+                    this.facingRight = true;
+                } else {
+                    this.velocityX = 0;
+                }
+
+                // Jumping (double jump)
+                if (keys[this.controls.jump] && this.jumpsLeft > 0) {
+                    this.velocityY = -this.jumpPower;
+                    this.jumpsLeft--;
+                    this.onGround = false;
+                }
+
+                // Shooting (single shot, no holding)
+                if (keys[this.controls.shoot] && !this.shootKeyPressed) {
+                    this.shoot();
+                    this.shootKeyPressed = true;
+                } else if (!keys[this.controls.shoot]) {
+                    this.shootKeyPressed = false;
+                }
+
+                // Parrying
+                if (keys[this.controls.parry]) {
+                    this.startParry();
+                }
+
+                // Apply gravity
+                this.velocityY += this.gravity;
+
+                // Update position
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+
+                // Check if player falls off screen (death)
+                if (this.x + this.width < 0 || this.x > canvas.width || 
+                    this.y + this.height < 0 || this.y > canvas.height) {
+                    this.die();
+                }
+
+                // Check platform collisions
+                this.onGround = false;
+                platforms.forEach(platform => {
+                    if (this.checkCollision(platform)) {
+                        // Landing on top
+                        if (this.velocityY > 0 && this.y + this.height - this.velocityY <= platform.y + 5) {
+                            this.y = platform.y - this.height;
+                            this.velocityY = 0;
+                            this.onGround = true;
+                            this.jumpsLeft = this.maxJumps; // Reset jumps on landing
+                        }
+                        // Hitting from below
+                        else if (this.velocityY < 0 && this.y - this.velocityY >= platform.y + platform.height - 5) {
+                            this.y = platform.y + platform.height;
+                            this.velocityY = 0;
+                        }
+                        // Side collisions
+                        else {
+                            if (this.x < platform.x) {
+                                this.x = platform.x - this.width;
+                            } else {
+                                this.x = platform.x + platform.width;
+                            }
+                            this.velocityX = 0;
+                        }
+                    }
+                });
+
+                // Update parry state
+                if (this.parryActive && Date.now() - this.lastParryTime > this.parryDuration) {
+                    this.parryActive = false;
+                }
+            }
+
+            startParry() {
+                const now = Date.now();
+                if (now - this.lastParryTime >= this.parryCooldown) {
+                    this.parryActive = true;
+                    this.lastParryTime = now;
+                    showParryIndicator(this);
+                }
+            }
+
+            shoot() {
+                const now = Date.now();
+                // Only shoot if we have bullets and no bullets from this player are currently active
+                const hasActiveBullets = bullets.some(b => b.owner === this && b.active);
+                
+                if (this.currentBullets > 0 && !hasActiveBullets && now - this.lastShotTime >= 100) {
+                    this.lastShotTime = now;
+                    this.currentBullets--;
+                    this.updateBulletDisplay();
+                    
+                    const offsetX = this.facingRight ? this.width : 0;
+                    const directionX = this.facingRight ? 1 : -1;
+                    
+                    // Only fire one bullet at a time
+                    bullets.push(new Bullet(
+                        this.x + offsetX,
+                        this.y + this.height / 2,
+                        directionX * this.bulletSpeed,
+                        0,
+                        this,
+                        this.damage,
+                        this.bulletSize,
+                        this.piercing
+                    ));
+                    
+                    // Auto-reload after shooting all bullets
+                    if (this.currentBullets === 0) {
+                        setTimeout(() => {
+                            this.currentBullets = this.maxBullets;
+                            this.updateBulletDisplay();
+                        }, this.shootCooldown);
+                    }
+                }
+            }
+
+            checkCollision(rect) {
+                return this.x < rect.x + rect.width &&
+                       this.x + this.width > rect.x &&
+                       this.y < rect.y + rect.height &&
+                       this.y + this.height > rect.y;
+            }
+
+            takeDamage(damage, attacker) {
+                if (this.parryActive) return false; // Parried!
+                
+                this.health -= damage;
+                this.updateHealthBar();
+                
+                // Life steal for attacker
+                if (attacker && attacker.lifeSteal > 0) {
+                    const healAmount = Math.min(attacker.lifeSteal, damage);
+                    attacker.health = Math.min(attacker.health + healAmount, attacker.maxHealth);
+                    attacker.updateHealthBar();
+                }
+                
+                if (this.health <= 0) {
+                    this.die();
+                }
+                return true;
+            }
+
+            die() {
+                const opponent = this === player1 ? player2 : player1;
+                opponent.wins++;
+                updateWins();
+                
+                // Set card winner
+                cardWinner = opponent;
+                
+                // Start next round or end game
+                if (currentRound < maxRounds) {
+                    showCardSelection(opponent);
+                } else {
+                    endGame();
+                }
+            }
+
+            updateHealthBar() {
+                const percentage = Math.max(0, (this.health / this.maxHealth) * 100);
+                document.getElementById(this.healthBarId).style.width = percentage + '%';
+            }
+
+            updateBulletDisplay() {
+                document.getElementById(this.bulletDisplayId).textContent = `${this.currentBullets}/${this.maxBullets}`;
+            }
+
+            applyCard(card) {
+                switch(card.effect) {
+                    case 'maxHealth':
+                        this.maxHealth += card.value;
+                        this.health = Math.min(this.health + card.value, this.maxHealth);
+                        break;
+                    case 'health':
+                        this.health = Math.min(this.health + card.value, this.maxHealth);
+                        break;
+                    case 'damage':
+                        this.damage += card.value;
+                        break;
+                    case 'bulletSpeed':
+                        this.bulletSpeed += card.value;
+                        break;
+                    case 'reloadSpeed':
+                        this.shootCooldown = Math.max(1000, this.shootCooldown + card.value);
+                        break;
+                    case 'maxBullets':
+                        this.maxBullets += card.value;
+                        this.currentBullets = this.maxBullets;
+                        break;
+                    case 'lifeSteal':
+                        this.lifeSteal += card.value;
+                        break;
+                    case 'parryDuration':
+                        this.parryDuration += card.value;
+                        break;
+                    case 'parryCooldown':
+                        this.parryCooldown = Math.max(1000, this.parryCooldown + card.value);
+                        break;
+                    case 'speed':
+                        this.speed += card.value;
+                        break;
+                    case 'jumpPower':
+                        this.jumpPower += card.value;
+                        break;
+                    case 'maxJumps':
+                        this.maxJumps += card.value;
+                        this.jumpsLeft = this.maxJumps;
+                        break;
+                    case 'gravity':
+                        this.gravity = Math.max(0.1, this.gravity + card.value);
+                        break;
+                    case 'bulletSize':
+                        this.bulletSize += card.value;
+                        break;
+                    case 'piercing':
+                        this.piercing = true;
+                        break;
+                }
+                this.updateHealthBar();
+                this.updateBulletDisplay();
+            }
+
+            draw() {
+                // Draw parry shield
+                if (this.parryActive) {
+                    ctx.strokeStyle = '#FFD700';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Draw player
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw eyes
+                ctx.fillStyle = 'white';
+                const eyeOffsetX = this.facingRight ? 6 : -6;
+                ctx.beginPath();
+                ctx.arc(this.x + this.width/2 + eyeOffsetX - 4, this.y + this.height/2 - 3, 4, 0, Math.PI * 2);
+                ctx.arc(this.x + this.width/2 + eyeOffsetX + 4, this.y + this.height/2 - 3, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width/2 + eyeOffsetX - 4, this.y + this.height/2 - 3, 2, 0, Math.PI * 2);
+                ctx.arc(this.x + this.width/2 + eyeOffsetX + 4, this.y + this.height/2 - 3, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw gun
+                ctx.fillStyle = '#333';
+                const gunX = this.facingRight ? this.x + this.width : this.x - 15;
+                ctx.fillRect(gunX, this.y + this.height/2 - 2, 15, 4);
+            }
+        }
+
+        // Platform class
+        class Platform {
+            constructor(x, y, width, height, colorScheme = 0) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.colorScheme = colorScheme;
+            }
+
+            draw() {
+                // Platform color variations based on level
+                const schemes = [
+                    { main: '#1a472a', border: '#0d2818' },  // Green
+                    { main: '#8B4513', border: '#5C2E0A' },  // Brown/wood
+                    { main: '#4A4A4A', border: '#2A2A2A' },  // Gray stone
+                    { main: '#2C3E50', border: '#1A252F' },  // Blue-gray
+                    { main: '#5D4037', border: '#3E2723' },  // Dark brown
+                    { main: '#455A64', border: '#263238' },  // Blue-gray 2
+                ];
+                
+                const scheme = schemes[this.colorScheme];
+                
+                // Add shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(this.x + 5, this.y + 5, this.width, this.height);
+                
+                // Main platform
+                ctx.fillStyle = scheme.main;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Border
+                ctx.strokeStyle = scheme.border;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                
+                // Highlight on top
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + this.width, this.y);
+                ctx.stroke();
+            }
+        }
+
+        // Level generation
+        let platforms = [];
+        
+        function generateLevel() {
+            platforms = [];
+            const levelType = Math.floor(Math.random() * 6);
+            const colorScheme = Math.floor(Math.random() * 6);
+            
+            switch(levelType) {
+                case 0: // Castle/Temple style
+                    // Base platform
+                    platforms.push(new Platform(200, 500, 400, 30, colorScheme));
+                    // Side towers
+                    platforms.push(new Platform(50, 400, 100, 20, colorScheme));
+                    platforms.push(new Platform(650, 400, 100, 20, colorScheme));
+                    // Mid platforms
+                    platforms.push(new Platform(250, 350, 80, 20, colorScheme));
+                    platforms.push(new Platform(470, 350, 80, 20, colorScheme));
+                    // Upper sides
+                    platforms.push(new Platform(100, 250, 120, 20, colorScheme));
+                    platforms.push(new Platform(580, 250, 120, 20, colorScheme));
+                    // Top center
+                    platforms.push(new Platform(350, 150, 100, 20, colorScheme));
+                    break;
+                    
+                case 1: // Mountain/Pyramid style
+                    // Bottom wide
+                    platforms.push(new Platform(150, 500, 500, 30, colorScheme));
+                    // Mid level
+                    platforms.push(new Platform(200, 400, 400, 25, colorScheme));
+                    // Upper
+                    platforms.push(new Platform(250, 300, 300, 20, colorScheme));
+                    // Top small
+                    platforms.push(new Platform(350, 200, 100, 20, colorScheme));
+                    // Side steps
+                    platforms.push(new Platform(50, 450, 80, 20, colorScheme));
+                    platforms.push(new Platform(670, 450, 80, 20, colorScheme));
+                    platforms.push(new Platform(100, 350, 70, 20, colorScheme));
+                    platforms.push(new Platform(630, 350, 70, 20, colorScheme));
+                    break;
+                    
+                case 2: // Floating islands
+                    // Center
+                    platforms.push(new Platform(325, 350, 150, 20, colorScheme));
+                    // Left side
+                    platforms.push(new Platform(50, 300, 120, 20, colorScheme));
+                    platforms.push(new Platform(80, 450, 100, 20, colorScheme));
+                    // Right side  
+                    platforms.push(new Platform(630, 300, 120, 20, colorScheme));
+                    platforms.push(new Platform(620, 450, 100, 20, colorScheme));
+                    // Upper platforms
+                    platforms.push(new Platform(200, 200, 100, 20, colorScheme));
+                    platforms.push(new Platform(500, 200, 100, 20, colorScheme));
+                    // Top center
+                    platforms.push(new Platform(350, 100, 100, 20, colorScheme));
+                    break;
+                    
+                case 3: // Multi-level symmetric
+                    // Bottom
+                    platforms.push(new Platform(300, 500, 200, 25, colorScheme));
+                    // Lower sides
+                    platforms.push(new Platform(100, 450, 150, 20, colorScheme));
+                    platforms.push(new Platform(550, 450, 150, 20, colorScheme));
+                    // Mid center
+                    platforms.push(new Platform(325, 350, 150, 20, colorScheme));
+                    // Upper sides
+                    platforms.push(new Platform(150, 250, 120, 20, colorScheme));
+                    platforms.push(new Platform(530, 250, 120, 20, colorScheme));
+                    // Small top platforms
+                    platforms.push(new Platform(50, 150, 80, 15, colorScheme));
+                    platforms.push(new Platform(670, 150, 80, 15, colorScheme));
+                    // Center top
+                    platforms.push(new Platform(350, 150, 100, 20, colorScheme));
+                    break;
+                    
+                case 4: // Scattered chaos
+                    platforms.push(new Platform(350, 450, 100, 20, colorScheme));
+                    platforms.push(new Platform(150, 380, 100, 20, colorScheme));
+                    platforms.push(new Platform(550, 380, 100, 20, colorScheme));
+                    platforms.push(new Platform(250, 300, 80, 20, colorScheme));
+                    platforms.push(new Platform(470, 300, 80, 20, colorScheme));
+                    platforms.push(new Platform(100, 220, 90, 20, colorScheme));
+                    platforms.push(new Platform(610, 220, 90, 20, colorScheme));
+                    platforms.push(new Platform(350, 200, 100, 20, colorScheme));
+                    platforms.push(new Platform(200, 140, 70, 15, colorScheme));
+                    platforms.push(new Platform(530, 140, 70, 15, colorScheme));
+                    break;
+                    
+                case 5: // Arena style with center stage
+                    // Center stage
+                    platforms.push(new Platform(300, 350, 200, 25, colorScheme));
+                    // Corner platforms
+                    platforms.push(new Platform(50, 450, 100, 20, colorScheme));
+                    platforms.push(new Platform(650, 450, 100, 20, colorScheme));
+                    platforms.push(new Platform(50, 200, 100, 20, colorScheme));
+                    platforms.push(new Platform(650, 200, 100, 20, colorScheme));
+                    // Side platforms
+                    platforms.push(new Platform(200, 250, 80, 20, colorScheme));
+                    platforms.push(new Platform(520, 250, 80, 20, colorScheme));
+                    // Small top
+                    platforms.push(new Platform(375, 150, 50, 15, colorScheme));
+                    break;
+            }
+        }
+        
+        // Generate initial level
+        generateLevel();
+        
+        // Find spawn positions on platforms
+        function getSpawnPositions() {
+            // Find a good center-ish platform for spawning
+            let spawnPlatform = platforms.find(p => p.x + p.width/2 > 250 && p.x + p.width/2 < 550 && p.y < 500);
+            
+            // Fallback to first platform if no center one found
+            if (!spawnPlatform) spawnPlatform = platforms[0];
+            
+            const player1X = spawnPlatform.x + spawnPlatform.width * 0.25 - 15;
+            const player2X = spawnPlatform.x + spawnPlatform.width * 0.75 - 15;
+            const spawnY = spawnPlatform.y - 35; // Spawn above the platform
+            
+            return {
+                p1: { x: player1X, y: spawnY },
+                p2: { x: player2X, y: spawnY }
+            };
+        }
+        
+        let spawnPos = getSpawnPositions();
+
+        // Create players (spawning on center platform)
+        const player1 = new Player(spawnPos.p1.x, spawnPos.p1.y, '#FF4444', {
+            left: 'a',
+            right: 'd',
+            jump: 'w',
+            shoot: ' ',
+            parry: 'q'
+        }, 'player1Health');
+
+        const player2 = new Player(spawnPos.p2.x, spawnPos.p2.y, '#4444FF', {
+            left: 'ArrowLeft',
+            right: 'ArrowRight',
+            jump: 'ArrowUp',
+            shoot: 'Enter',
+            parry: 'Shift'
+        }, 'player2Health');
+
+        // Bullets array
+        let bullets = [];
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Show parry indicator
+        function showParryIndicator(player) {
+            const indicator = document.createElement('div');
+            indicator.className = 'parry-indicator';
+            indicator.textContent = 'PARRY!';
+            indicator.style.left = (canvas.offsetLeft + player.x) + 'px';
+            indicator.style.top = (canvas.offsetTop + player.y - 30) + 'px';
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => indicator.remove(), 500);
+        }
+
+        // Update wins display
+        function updateWins() {
+            document.getElementById('player1Wins').textContent = player1.wins;
+            document.getElementById('player2Wins').textContent = player2.wins;
+        }
+
+        // Show card selection
+        function showCardSelection(winner) {
+            waitingForCardSelection = true;
+            gameRunning = false;
+            
+            const cardSelection = document.getElementById('cardSelection');
+            const cardContainer = document.getElementById('cardContainer');
+            const cardWinnerText = document.getElementById('cardWinner');
+            
+            cardWinnerText.textContent = (winner === player1 ? '🔴 Player 1' : '🔵 Player 2') + ' wins the round!';
+            
+            // Select 5 random cards
+            const selectedCards = [];
+            const availableCards = [...cardTypes];
+            
+            for (let i = 0; i < 5; i++) {
+                const randomIndex = Math.floor(Math.random() * availableCards.length);
+                selectedCards.push(availableCards.splice(randomIndex, 1)[0]);
+            }
+            
+            // Display cards
+            cardContainer.innerHTML = '';
+            selectedCards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.innerHTML = `
+                    <h3>${card.name}</h3>
+                    <p>${card.description}</p>
+                `;
+                cardElement.onclick = () => selectCard(winner, card);
+                cardContainer.appendChild(cardElement);
+            });
+            
+            cardSelection.style.display = 'block';
+        }
+
+        // Select card and continue
+        function selectCard(winner, card) {
+            winner.applyCard(card);
+            document.getElementById('cardSelection').style.display = 'none';
+            
+            currentRound++;
+            document.getElementById('currentRound').textContent = currentRound;
+            
+            // Generate new level for next round
+            generateLevel();
+            spawnPos = getSpawnPositions();
+            
+            // Reset round
+            player1.reset(spawnPos.p1.x, spawnPos.p1.y);
+            player2.reset(spawnPos.p2.x, spawnPos.p2.y);
+            bullets = [];
+            
+            waitingForCardSelection = false;
+            gameRunning = true;
+        }
+
+        // End game
+        function endGame() {
+            gameRunning = false;
+            const gameOverDiv = document.getElementById('gameOver');
+            const winnerText = document.getElementById('winnerText');
+            const finalScores = document.getElementById('finalScores');
+            
+            if (player1.wins > player2.wins) {
+                winnerText.textContent = '🔴 Player 1 Wins the Match!';
+            } else if (player2.wins > player1.wins) {
+                winnerText.textContent = '🔵 Player 2 Wins the Match!';
+            } else {
+                winnerText.textContent = "It's a Tie!";
+            }
+            
+            finalScores.textContent = `Player 1: ${player1.wins} rounds | Player 2: ${player2.wins} rounds`;
+            gameOverDiv.style.display = 'block';
+        }
+
+        // Restart game
+        function restartGame() {
+            gameRunning = true;
+            currentRound = 1;
+            player1.wins = 0;
+            player2.wins = 0;
+            player1.maxHealth = 100;
+            player2.maxHealth = 100;
+            player1.damage = 10;
+            player2.damage = 10;
+            player1.bulletSpeed = 10;
+            player2.bulletSpeed = 10;
+            player1.shootCooldown = 3000;
+            player2.shootCooldown = 3000;
+            player1.maxBullets = 3;
+            player2.maxBullets = 3;
+            player1.bulletCount = 1;
+            player2.bulletCount = 1;
+            player1.parryDuration = 300;
+            player2.parryDuration = 300;
+            player1.parryCooldown = 4000;
+            player2.parryCooldown = 4000;
+            player1.speed = 5;
+            player2.speed = 5;
+            player1.jumpPower = 12;
+            player2.jumpPower = 12;
+            player1.maxJumps = 2;
+            player2.maxJumps = 2;
+            player1.gravity = 0.5;
+            player2.gravity = 0.5;
+            player1.lifeSteal = 0;
+            player2.lifeSteal = 0;
+            player1.bulletSize = 5;
+            player2.bulletSize = 5;
+            player1.piercing = false;
+            player2.piercing = false;
+            
+            // Generate new level
+            generateLevel();
+            spawnPos = getSpawnPositions();
+            
+            player1.reset(spawnPos.p1.x, spawnPos.p1.y);
+            player2.reset(spawnPos.p2.x, spawnPos.p2.y);
+            bullets = [];
+            
+            document.getElementById('currentRound').textContent = currentRound;
+            document.getElementById('gameOver').style.display = 'none';
+            updateWins();
+        }
+
+        // Draw background
+        function drawBackground() {
+            const gradient = ctx.createRadialGradient(400, 300, 100, 400, 300, 500);
+            gradient.addColorStop(0, '#0f3460');
+            gradient.addColorStop(1, '#16213e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw stars
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 137) % canvas.width;
+                const y = (i * 241) % canvas.height;
+                ctx.fillRect(x, y, 2, 2);
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            // Clear canvas
+            drawBackground();
+
+            // Draw platforms
+            platforms.forEach(platform => platform.draw());
+
+            if (gameRunning) {
+                // Update and draw bullets
+                bullets = bullets.filter(bullet => {
+                    bullet.update();
+                    
+                    // Check bullet hits on players
+                    if (bullet.active) {
+                        [player1, player2].forEach(player => {
+                            if (bullet.owner !== player) {
+                                const dx = bullet.x - (player.x + player.width/2);
+                                const dy = bullet.y - (player.y + player.height/2);
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                
+                                if (distance < bullet.radius + player.width/2) {
+                                    if (player.parryActive) {
+                                        // Parry - reverse bullet
+                                        bullet.velocityX = -bullet.velocityX;
+                                        bullet.velocityY = -bullet.velocityY;
+                                        bullet.owner = player;
+                                        showParryIndicator(player);
+                                    } else {
+                                        player.takeDamage(bullet.damage, bullet.owner);
+                                        bullet.active = false;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (bullet.active) {
+                        bullet.draw();
+                    }
+                    
+                    return bullet.active;
+                });
+
+                // Update and draw players
+                player1.update();
+                player1.draw();
+                
+                player2.update();
+                player2.draw();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>
